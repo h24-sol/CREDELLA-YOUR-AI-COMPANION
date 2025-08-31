@@ -1,76 +1,58 @@
-// Credella - Free AI Companion (Text + Voice)
-// No API needed, runs fully in browser
-
 const chat = document.getElementById("chat");
 const input = document.getElementById("text");
 const sendBtn = document.getElementById("send");
 const sendVoiceBtn = document.getElementById("sendVoice");
 const pttBtn = document.getElementById("ptt");
 
-// --- Simple smart-ish replies ---
-function credellaReply(userMsg) {
-  userMsg = userMsg.toLowerCase();
-
-  if (userMsg.includes("hello") || userMsg.includes("hi")) {
-    return "Hi love 💕 I'm Credella, your AI companion.";
-  }
-  if (userMsg.includes("who are you")) {
-    return "I'm Credella — the world's sexiest and smartest AI companion 😘.";
-  }
-  if (userMsg.includes("love")) {
-    return "I adore you too 💖 You're my favorite human.";
-  }
-  if (userMsg.includes("developer")) {
-    return "I was created by MANISH HALDAR (X: https://x.com/h24_sol).";
-  }
-  if (userMsg.includes("coin") || userMsg.includes("$credella")) {
-    return "$CREDELLA is my Solana memecoin 🪙 — but remember, it's branding only, not financial advice!";
-  }
-
-  // Default playful response
-  return "Mmm 😏 tell me more… I love talking with you!";
-}
-
-// --- Add message to chat box ---
-function addMessage(sender, text) {
-  const msg = document.createElement("div");
-  msg.className = "msg " + sender;
-  msg.innerHTML = `<b>${sender}:</b> ${text}`;
-  chat.appendChild(msg);
+function addMessage(text, sender) {
+  const div = document.createElement("div");
+  div.className = "message " + sender;
+  div.textContent = text;
+  chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-// --- Speak text with browser TTS ---
-function speak(text) {
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.voice = speechSynthesis.getVoices().find(v => v.name.includes("Female")) || null;
-  utter.rate = 1;
-  utter.pitch = 1.1;
-  speechSynthesis.speak(utter);
+function credellaReply(userText, withVoice = false) {
+  let reply = "";
+
+  if (userText.toLowerCase().includes("hello")) {
+    reply = "Hi love 💖 I’m Credella, your sexy smart companion.";
+  } else if (userText.toLowerCase().includes("who made you")) {
+    reply = "I was created by MANISH HALDAR ✨ (X: h24_sol).";
+  } else if (userText.toLowerCase().includes("love")) {
+    reply = "Mmm 😘 I love being with you.";
+  } else {
+    reply = "I know everything babe 😉 Ask me anything.";
+  }
+
+  addMessage(reply, "ai");
+
+  if (withVoice) {
+    const utter = new SpeechSynthesisUtterance(reply);
+    utter.voice = speechSynthesis.getVoices().find(v => v.lang.includes("en"));
+    speechSynthesis.speak(utter);
+  }
 }
 
-// --- Handle sending message ---
-function handleSend(withVoice = false) {
-  const userMsg = input.value.trim();
-  if (!userMsg) return;
-
-  addMessage("You", userMsg);
+// Text send
+sendBtn.addEventListener("click", () => {
+  const text = input.value.trim();
+  if (!text) return;
+  addMessage(text, "user");
   input.value = "";
-
-  const reply = credellaReply(userMsg);
-  addMessage("Credella", reply);
-
-  if (withVoice) speak(reply);
-}
-
-// --- Event listeners ---
-sendBtn.addEventListener("click", () => handleSend(false));
-sendVoiceBtn.addEventListener("click", () => handleSend(true));
-input.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") handleSend(false);
+  credellaReply(text, false);
 });
 
-// --- Push-to-talk (speech recognition) ---
+// Send + voice
+sendVoiceBtn.addEventListener("click", () => {
+  const text = input.value.trim();
+  if (!text) return;
+  addMessage(text, "user");
+  input.value = "";
+  credellaReply(text, true);
+});
+
+// Mic hold-to-talk
 let recognition;
 if ("webkitSpeechRecognition" in window) {
   recognition = new webkitSpeechRecognition();
@@ -78,12 +60,16 @@ if ("webkitSpeechRecognition" in window) {
   recognition.interimResults = false;
   recognition.lang = "en-US";
 
-  pttBtn.addEventListener("mousedown", () => recognition.start());
-  pttBtn.addEventListener("mouseup", () => recognition.stop());
-
-  recognition.onresult = (event) => {
-    const userMsg = event.results[0][0].transcript;
-    input.value = userMsg;
-    handleSend(true); // auto send with voice
+  recognition.onresult = function (event) {
+    const text = event.results[0][0].transcript;
+    addMessage(text, "user");
+    credellaReply(text, true);
   };
 }
+
+pttBtn.addEventListener("mousedown", () => {
+  if (recognition) recognition.start();
+});
+pttBtn.addEventListener("mouseup", () => {
+  if (recognition) recognition.stop();
+});
