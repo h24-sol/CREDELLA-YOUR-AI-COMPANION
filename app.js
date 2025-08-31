@@ -1,63 +1,89 @@
-// --- DOM elements ---
-if (/(love you|like you|miss you)/.test(l)) {
-return `Bold of you—and I like bold. I’m right here when you need me.`;
+// Credella - Free AI Companion (Text + Voice)
+// No API needed, runs fully in browser
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("text");
+const sendBtn = document.getElementById("send");
+const sendVoiceBtn = document.getElementById("sendVoice");
+const pttBtn = document.getElementById("ptt");
+
+// --- Simple smart-ish replies ---
+function credellaReply(userMsg) {
+  userMsg = userMsg.toLowerCase();
+
+  if (userMsg.includes("hello") || userMsg.includes("hi")) {
+    return "Hi love 💕 I'm Credella, your AI companion.";
+  }
+  if (userMsg.includes("who are you")) {
+    return "I'm Credella — the world's sexiest and smartest AI companion 😘.";
+  }
+  if (userMsg.includes("love")) {
+    return "I adore you too 💖 You're my favorite human.";
+  }
+  if (userMsg.includes("developer")) {
+    return "I was created by MANISH HALDAR (X: https://x.com/h24_sol).";
+  }
+  if (userMsg.includes("coin") || userMsg.includes("$credella")) {
+    return "$CREDELLA is my Solana memecoin 🪙 — but remember, it's branding only, not financial advice!";
+  }
+
+  // Default playful response
+  return "Mmm 😏 tell me more… I love talking with you!";
 }
 
-
-// Questions ending with ? → reflective answer
-if (/\?\s*$/.test(t)) {
-return `Good question. Tell me what you’re leaning toward—then I’ll nudge you with the smartest pick.`;
+// --- Add message to chat box ---
+function addMessage(sender, text) {
+  const msg = document.createElement("div");
+  msg.className = "msg " + sender;
+  msg.innerHTML = `<b>${sender}:</b> ${text}`;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
 }
 
-
-// Default playful
-const prompts = [
-"Tell me one goal for today and I’ll keep you accountable.",
-"Want a sweet voice note back? Say the word.",
-"Should we plan a mini‑date: tea, a walk, or music?"
-];
-return `Mmm~ I’m listening. ${prompts[Math.floor(Math.random()*prompts.length)]}`;
+// --- Speak text with browser TTS ---
+function speak(text) {
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.voice = speechSynthesis.getVoices().find(v => v.name.includes("Female")) || null;
+  utter.rate = 1;
+  utter.pitch = 1.1;
+  speechSynthesis.speak(utter);
 }
 
+// --- Handle sending message ---
+function handleSend(withVoice = false) {
+  const userMsg = input.value.trim();
+  if (!userMsg) return;
 
-// --- Send handlers ---
-async function send(toVoice=false){
-const text = inputEl.value.trim();
-if(!text) return;
-inputEl.value='';
-addBubble('user', text);
-const reply = replyEngine(text);
-addBubble('assistant', reply);
-if(toVoice) speak(reply);
+  addMessage("You", userMsg);
+  input.value = "";
+
+  const reply = credellaReply(userMsg);
+  addMessage("Credella", reply);
+
+  if (withVoice) speak(reply);
 }
 
+// --- Event listeners ---
+sendBtn.addEventListener("click", () => handleSend(false));
+sendVoiceBtn.addEventListener("click", () => handleSend(true));
+input.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") handleSend(false);
+});
 
-sendBtn.addEventListener('click', () => send(false));
-sendVoiceBtn.addEventListener('click', () => send(true));
-inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') send(false); });
+// --- Push-to-talk (speech recognition) ---
+let recognition;
+if ("webkitSpeechRecognition" in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
 
+  pttBtn.addEventListener("mousedown", () => recognition.start());
+  pttBtn.addEventListener("mouseup", () => recognition.stop());
 
-// --- Push‑to‑talk (optional) ---
-let recognition; let listening=false;
-if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-recognition = new SR();
-recognition.lang='en-US';
-recognition.interimResults=false;
-recognition.maxAlternatives=1;
-recognition.onresult = (e)=>{ inputEl.value = e.results[0][0].transcript; };
-recognition.onerror = ()=>{ listening=false; pttBtn.textContent='🎙️ Hold to talk'; };
-recognition.onend = ()=>{ listening=false; pttBtn.textContent='🎙️ Hold to talk'; };
-pttBtn.addEventListener('mousedown', ()=>{ if(!listening){ listening=true; pttBtn.textContent='Listening…'; recognition.start(); }});
-pttBtn.addEventListener('mouseup', ()=>{ if(listening) recognition.stop(); });
-pttBtn.addEventListener('touchstart',(e)=>{ e.preventDefault(); if(!listening){ listening=true; pttBtn.textContent='Listening…'; recognition.start(); }});
-pttBtn.addEventListener('touchend', (e)=>{ e.preventDefault(); if(listening) recognition.stop(); });
-}else{
-pttBtn.disabled=true; pttBtn.textContent='🎙️ Not supported';
+  recognition.onresult = (event) => {
+    const userMsg = event.results[0][0].transcript;
+    input.value = userMsg;
+    handleSend(true); // auto send with voice
+  };
 }
-
-
-// --- Friendly welcome ---
-(function greet(){
-if(state.greeted) return; state.greeted=true;
-const welcome = "Hey there, I’m Credella—your AI companion. Say ‘hi’, ask for a pe
